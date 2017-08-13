@@ -1,4 +1,4 @@
-/* 
+/*
    Copyright (c) 2016 Ingo Wald
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,74 +20,116 @@
    SOFTWARE.
 */
 
-#include "../common/MPI.h"
 #include "../common/CompressedTile.h"
+#include "../common/MPI.h"
 #include "../common/WallConfig.h"
+#include "ospcommon/networking/Socket.h"
 
 namespace ospray {
-  namespace dw {
+namespace dw {
 
-    using std::cout; 
-    using std::endl;
-    using std::flush;
+using std::cout;
+using std::endl;
+using std::flush;
 
-    /*! the dispatcher that receives tiles on the head node, and then
-      dispatches them to the actual tile receivers */
-    void runDispatcher(const MPI::Group &outsideClients,
-                       const MPI::Group &displayGroup,
-                       const WallConfig &wallConfig)
-    {
-      // std::thread *dispatcherThread = new std::thread([=]() {
-      std::cout << "#osp:dw(hn): running dispatcher on rank 0" << std::endl;
+/*! the dispatcher that receives tiles on the head node, and then
+  dispatches them to the actual tile receivers */
+void runDispatcher(const MPI::Group &outsideClients, const MPI::Group &displayGroup, const WallConfig &wallConfig) {
+  // std::thread *dispatcherThread = new std::thread([=]() {
+  std::cout << "#osp:dw(hn): running dispatcher on rank 0" << std::endl;
 
-      size_t numWrittenThisFrame = 0;
-      size_t numExpectedThisFrame = wallConfig.totalPixelCount();
+  size_t numWrittenThisFrame = 0;
+  size_t numExpectedThisFrame = wallConfig.totalPixelCount();
 
-      while (1) {
-        CompressedTile encoded;
-        DW_DBG(printf("dispatcher trying to receive...\n"));
-        encoded.receiveOne(outsideClients);
+  while (1) {
+    CompressedTile encoded;
+    DW_DBG(printf("dispatcher trying to receive...\n"));
+    encoded.receiveOne(outsideClients);
 
-        const box2i region = encoded.getRegion();
-        
-        // -------------------------------------------------------
-        // compute displays affected by this tile
-        // -------------------------------------------------------
-        const box2i affectedDisplays = wallConfig.affectedDisplays(region);
-        
-        DW_DBG(printf("region %i %i - %i %i displays %i %i - %i %i\n",
-                      region.lower.x,
-                      region.lower.y,
-                      region.upper.x,
-                      region.upper.y,
-                      affectedDisplays.lower.x,
-                      affectedDisplays.lower.y,
-                      affectedDisplays.upper.x,
-                      affectedDisplays.upper.y));
+    const box2i region = encoded.getRegion();
 
-        // -------------------------------------------------------
-        // now, send to all affected displays ...
-        // -------------------------------------------------------
-        for (int dy=affectedDisplays.lower.y;dy<affectedDisplays.upper.y;dy++)
-          for (int dx=affectedDisplays.lower.x;dx<affectedDisplays.upper.x;dx++) {
-            DW_DBG(printf("sending to %i/%i -> %i\n",dx,dy,wallConfig.rankOfDisplay(vec2i(dx,dy))));
-            encoded.sendTo(displayGroup,wallConfig.rankOfDisplay(vec2i(dx,dy)));
-          }
+    // -------------------------------------------------------
+    // compute displays affected by this tile
+    // -------------------------------------------------------
+    const box2i affectedDisplays = wallConfig.affectedDisplays(region);
 
-        numWrittenThisFrame += region.size().product();
-        DW_DBG(printf("dispatch %i/%i\n",numWrittenThisFrame,numExpectedThisFrame));
-        if (numWrittenThisFrame == numExpectedThisFrame) {
-          DW_DBG(printf("#osp:dw(hn): head node has a full frame\n"));
-          outsideClients.barrier();
-          displayGroup.barrier();
+    DW_DBG(printf("region %i %i - %i %i displays %i %i - %i %i\n", region.lower.x, region.lower.y, region.upper.x,
+                  region.upper.y, affectedDisplays.lower.x, affectedDisplays.lower.y, affectedDisplays.upper.x,
+                  affectedDisplays.upper.y));
 
-          numWrittenThisFrame = 0;
-        }
-        
-      };
-      // });
+    // -------------------------------------------------------
+    // now, send to all affected displays ...
+    // -------------------------------------------------------
+    for (int dy = affectedDisplays.lower.y; dy < affectedDisplays.upper.y; dy++)
+      for (int dx = affectedDisplays.lower.x; dx < affectedDisplays.upper.x; dx++) {
+        DW_DBG(printf("sending to %i/%i -> %i\n", dx, dy, wallConfig.rankOfDisplay(vec2i(dx, dy))));
+        encoded.sendTo(displayGroup, wallConfig.rankOfDisplay(vec2i(dx, dy)));
+      }
+
+    numWrittenThisFrame += region.size().product();
+    DW_DBG(printf("dispatch %i/%i\n", numWrittenThisFrame, numExpectedThisFrame));
+    if (numWrittenThisFrame == numExpectedThisFrame) {
+      DW_DBG(printf("#osp:dw(hn): head node has a full frame\n"));
+      outsideClients.barrier();
+      displayGroup.barrier();
+
+      numWrittenThisFrame = 0;
     }
+  };
+  // });
+}
 
-    
-  } // ::ospray::dw
-} // ::ospray
+void runDispatcher(socket_t outside, const MPI::Group &outsideClients, const MPI::Group &displayGroup,
+                   const WallConfig &wallConfig) {
+  // std::thread *dispatcherThread = new std::thread([=]() {
+  std::cout << "#osp:dw(hn): running dispatcher on rank 0" << std::endl;
+
+  size_t numWrittenThisFrame = 0;
+  size_t numExpectedThisFrame = wallConfig.totalPixelCount();
+
+  while (1) {
+    CompressedTile encoded;
+    DW_DBG(printf("dispatcher trying to receive...\n"));
+    encoded.receiveOne(outside);
+    printf("Received packet\n");
+    const box2i region = encoded.getRegion();
+
+    // -------------------------------------------------------
+    // compute displays affected by this tile
+    // -------------------------------------------------------
+    const box2i affectedDisplays = wallConfig.affectedDisplays(region);
+
+    DW_DBG(printf("region %i %i - %i %i displays %i %i - %i %i\n", region.lower.x, region.lower.y, region.upper.x,
+                  region.upper.y, affectedDisplays.lower.x, affectedDisplays.lower.y, affectedDisplays.upper.x,
+                  affectedDisplays.upper.y));
+
+    // -------------------------------------------------------
+    // now, send to all affected displays ...
+    // -------------------------------------------------------
+    for (int dy = affectedDisplays.lower.y; dy < affectedDisplays.upper.y; dy++)
+      for (int dx = affectedDisplays.lower.x; dx < affectedDisplays.upper.x; dx++) {
+        DW_DBG(printf("sending to %i/%i -> %i\n", dx, dy, wallConfig.rankOfDisplay(vec2i(dx, dy))));
+        encoded.sendTo(displayGroup, wallConfig.rankOfDisplay(vec2i(dx, dy)));
+      }
+
+    numWrittenThisFrame += region.size().product();
+    DW_DBG(printf("dispatch %i/%i\n", numWrittenThisFrame, numExpectedThisFrame));
+    if (numWrittenThisFrame == numExpectedThisFrame) {
+
+      // outsideClients.barrier();
+      if (displayGroup.rank == 0) {
+        int barries = 0xFFFF;
+        write(outside, barries);
+        flush(outside);
+      }
+      printf("#osp:dw(hn): head node has a full frame\n");
+      displayGroup.barrier();
+
+      numWrittenThisFrame = 0;
+    }
+  };
+  // });
+}
+
+} // namespace dw
+} // namespace ospray

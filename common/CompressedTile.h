@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (c) 2016 Ingo Wald
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,65 +20,62 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once 
+#pragma once
 
 #include "MPI.h"
+#include "ospcommon/networking/Socket.h"
 
 namespace ospray {
-  namespace dw {
+namespace dw {
 
-    using namespace ospcommon;
+using namespace ospcommon;
 
-    /*! a plain, uncompressed tile */
-    struct PlainTile 
-    {
-      PlainTile(const vec2i &tileSize)
-        : pitch(tileSize.x),
-          pixel(new uint32_t [tileSize.x*tileSize.y])
-      {}
+/*! a plain, uncompressed tile */
+struct PlainTile {
+  PlainTile(const vec2i &tileSize) : pitch(tileSize.x), pixel(new uint32_t[tileSize.x * tileSize.y]) {}
 
-      ~PlainTile()
-      { delete[] pixel; }
+  ~PlainTile() { delete[] pixel; }
 
-      inline vec2i size() const { return region.size(); }
+  inline vec2i size() const { return region.size(); }
 
-      /*! region of pixels that this tile corresponds to */
-      box2i     region;
-      /*! number of ints in pixel[] buffer from one y to y+1 */
-      int       pitch { 0 };
-      /*! which eye this goes to (if stereo) */
-      int       eye   { 0 };
-      /*! pointer to buffer of pixels; this buffer is 'pitch' int-sized pixels wide */
-      uint32_t *pixel { nullptr };
-    };
+  /*! region of pixels that this tile corresponds to */
+  box2i region;
+  /*! number of ints in pixel[] buffer from one y to y+1 */
+  int pitch{ 0 };
+  /*! which eye this goes to (if stereo) */
+  int eye{ 0 };
+  /*! pointer to buffer of pixels; this buffer is 'pitch' int-sized pixels wide */
+  uint32_t *pixel{ nullptr };
+};
 
-    /*! encoded representation of a tile - eventually to use true
-        compression; for now we just pack all pixels (and header) into
-        a single linear array of ints */
-    struct CompressedTile {
-      CompressedTile();
-      ~CompressedTile();
+/*! encoded representation of a tile - eventually to use true
+    compression; for now we just pack all pixels (and header) into
+    a single linear array of ints */
+struct CompressedTile {
+  CompressedTile();
+  ~CompressedTile();
 
-      unsigned char *data;
-      int fromRank;
-      int numBytes;
+  unsigned char *data;
+  int fromRank;
+  int numBytes;
 
-      /*! get region that this tile corresponds to */
-      box2i getRegion() const;
+  /*! get region that this tile corresponds to */
+  box2i getRegion() const;
 
-      /*! send the tile to the given rank in the given group */
-      void sendTo(const MPI::Group &outside, const int targetRank) const;
+  /*! send the tile to the given rank in the given group */
+  void sendTo(const MPI::Group &outside, const int targetRank) const;
 
-      /*! receive one tile from the outside communicator */
-      void receiveOne(const MPI::Group &outside); 
-      void encode(void *compressor, const PlainTile &tile);
-      void decode(void *decompressor, PlainTile &tile);
+  /*! receive one tile from the outside communicator */
+  void receiveOne(const MPI::Group &outside);
+  void receiveOne(const socket_t &outside);
+  void encode(void *compressor, const PlainTile &tile);
+  void decode(void *decompressor, PlainTile &tile);
 
-      static void *createCompressor();
-      static void *createDecompressor();
-      static void freeCompressor(void *);
-      static void freeDecompressor(void *);
-    };
-    
-  } // ::ospray::dw
-} // ::ospray
+  static void *createCompressor();
+  static void *createDecompressor();
+  static void freeCompressor(void *);
+  static void freeDecompressor(void *);
+};
+
+} // namespace dw
+} // namespace ospray
