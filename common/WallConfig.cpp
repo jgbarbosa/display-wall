@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (c) 2016 Ingo Wald
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,12 +24,12 @@ SOFTWARE.
 
 namespace ospray {
   namespace dw {
-    
-    WallConfig::WallConfig(const vec2i &numDisplays, 
+
+    WallConfig::WallConfig(const vec2i &numDisplays,
                            const vec2i &pixelsPerDisplay,
                            const vec2f &relativeBezelWidth,
                            const DisplayArrangement displayArrangement,
-                           const bool stereo)
+                           const bool stereo, const bool tcpbridge)
       : numDisplays(numDisplays),
         pixelsPerDisplay(pixelsPerDisplay),
         relativeBezelWidth(relativeBezelWidth),
@@ -39,8 +39,8 @@ namespace ospray {
       // if (displayArrangement != Arrangement_xy)
       //   throw std::runtime_error("non-default arrangments of displays not yet implemented");
     }
-    
-    
+
+
     vec2i  WallConfig::displayIDofRank(int rank) const
     {
       switch (displayArrangement) {
@@ -56,7 +56,7 @@ namespace ospray {
       }
     }
 
-    int    WallConfig::rankOfDisplay(const vec2i &displayID) const 
+    int    WallConfig::rankOfDisplay(const vec2i &displayID) const
     {
       switch (displayArrangement) {
       case Arrangement_Yx:
@@ -69,11 +69,11 @@ namespace ospray {
         throw std::runtime_error("display arrangement not implemented ...");
       }
     }
-    
+
 
     box2i  WallConfig::regionOfRank(int rank) const
-    { 
-      return regionOfDisplay(displayIDofRank(rank)); 
+    {
+      return regionOfDisplay(displayIDofRank(rank));
     }
 
 
@@ -88,37 +88,37 @@ namespace ospray {
       for (int ix=0;ix<numDisplays.x;ix++) {
         int ix_begin = ix*(pixelsPerDisplay.x+bezelPixelsPerDisplay().x);
         int ix_end   = ix_begin+pixelsPerDisplay.x+bezelPixelsPerDisplay().x;
-        
+
         if (ix_end > pixelRegion.lower.x) { lo.x = ix; break; }
       }
       for (int ix=numDisplays.x-1;ix>=0;--ix) {
         int ix_begin = ix*(pixelsPerDisplay.x+bezelPixelsPerDisplay().x);
         int ix_end   = ix_begin+pixelsPerDisplay.x+bezelPixelsPerDisplay().x;
-        
+
         if (ix_begin < pixelRegion.upper.x) { hi.x = ix+1; break; }
       }
       for (int iy=0;iy<numDisplays.y;iy++) {
         int iy_begin = iy*(pixelsPerDisplay.y+bezelPixelsPerDisplay().y);
         int iy_end   = iy_begin+pixelsPerDisplay.y+bezelPixelsPerDisplay().y;
-        
+
         if (iy_end > pixelRegion.lower.y) { lo.y = iy; break; }
       }
       for (int iy=numDisplays.y-1;iy>=0;--iy) {
         int iy_begin = iy*(pixelsPerDisplay.y+bezelPixelsPerDisplay().y);
         int iy_end   = iy_begin+pixelsPerDisplay.y+bezelPixelsPerDisplay().y;
-        
+
         if (iy_begin < pixelRegion.upper.y) { hi.y = iy+1; break; }
       }
-      
+
       box2i result(lo,hi);
-      
+
       return result;
 #else
       vec2i lo
         = (pixelRegion.lower+bezelPixelsPerDisplay())
         / (pixelsPerDisplay+bezelPixelsPerDisplay());
       vec2i hi
-        = (pixelRegion.upper + pixelsPerDisplay - vec2i(1)) 
+        = (pixelRegion.upper + pixelsPerDisplay - vec2i(1))
         / (pixelsPerDisplay+bezelPixelsPerDisplay());
       // vec2i hi
       // = divRoundUp(pixelRegion.upper,pixelsPerDisplay+bezelPixelsPerDisplay());
@@ -134,14 +134,14 @@ namespace ospray {
         display at given coordinates is covering */
     box2i  WallConfig::regionOfDisplay(const vec2i &displayID) const
     {
-      const vec2i lo = displayID * (pixelsPerDisplay + bezelPixelsPerDisplay()); 
+      const vec2i lo = displayID * (pixelsPerDisplay + bezelPixelsPerDisplay());
       return box2i(lo, lo + pixelsPerDisplay);
     }
 
     /*! returns the total number of displays across x and y dimensions */
     size_t WallConfig::displayCount() const
-    { 
-      return numDisplays.x*numDisplays.y; 
+    {
+      return numDisplays.x*numDisplays.y;
     }
 
     /*! returns the number of pixels (in x and y, respectively) that
@@ -151,37 +151,37 @@ namespace ospray {
       'y' value the sum of top and bottom area' */
     vec2i WallConfig::bezelPixelsPerDisplay() const
     {
-      return vec2i(relativeBezelWidth*vec2f(pixelsPerDisplay)); 
+      return vec2i(relativeBezelWidth*vec2f(pixelsPerDisplay));
     }
-    
+
     /*! computes the total number of pixels (in x and y directions,
       respectively), across all pixels, and INCLUDING "hidden"
       pixels in the bezels (ie, even though there is nothing to
       actually see in a bezel we report the bezel as if it was
       covered by pixels to avoid distortion) */
     vec2i WallConfig::totalPixels() const
-    { 
+    {
       const vec2i realPixels = numDisplays * pixelsPerDisplay;
       const vec2i bezelPixels = (numDisplays-vec2i(1)) * bezelPixelsPerDisplay();
-      return realPixels+bezelPixels; 
+      return realPixels+bezelPixels;
     }
 
     void WallConfig::print() const
     {
       std::cout << "WallConfig:" << std::endl;
-      std::cout << " - num displays : " 
+      std::cout << " - num displays : "
                 << numDisplays.x << "x" << numDisplays.y
                 << " (" << displayCount() << " displays)" << std::endl;
-      std::cout << " - pixels/diplay: " 
+      std::cout << " - pixels/diplay: "
                 << pixelsPerDisplay.x << "x" << pixelsPerDisplay.y << std::endl;
       std::cout << " - bezel width "
                 << "x:" << int(100.f*relativeBezelWidth.x) << "%, "
                 << "y:" << int(100.f*relativeBezelWidth.y) << "%";
       std::cout << " ("
                 << "x:" << int(pixelsPerDisplay.x*relativeBezelWidth.x) << "pix, "
-                << "y:" << int(pixelsPerDisplay.y*relativeBezelWidth.y) << "pix)" 
+                << "y:" << int(pixelsPerDisplay.y*relativeBezelWidth.y) << "pix)"
                 << std::endl;
-      std::cout << " - total pixels : " 
+      std::cout << " - total pixels : "
                 << totalPixels().x << "x" << totalPixels().y
                 << " (" << prettyNumber(totalPixelCount()) << "pix)" << std::endl;
     }

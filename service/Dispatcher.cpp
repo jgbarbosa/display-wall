@@ -1,4 +1,4 @@
-/* 
+/*
    Copyright (c) 2016 Ingo Wald
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,7 +27,7 @@
 namespace ospray {
   namespace dw {
 
-    using std::cout; 
+    using std::cout;
     using std::endl;
     using std::flush;
 
@@ -46,15 +46,16 @@ namespace ospray {
       while (1) {
         CompressedTile encoded;
         DW_DBG(printf("dispatcher trying to receive...\n"));
+
         encoded.receiveOne(outsideClients);
 
         const box2i region = encoded.getRegion();
-        
+
         // -------------------------------------------------------
         // compute displays affected by this tile
         // -------------------------------------------------------
         const box2i affectedDisplays = wallConfig.affectedDisplays(region);
-        
+
         DW_DBG(printf("region %i %i - %i %i displays %i %i - %i %i\n",
                       region.lower.x,
                       region.lower.y,
@@ -83,11 +84,11 @@ namespace ospray {
 
           numWrittenThisFrame = 0;
         }
-        
+
       };
       // });
     }
 
-    
+
   } // ::ospray::dw
 } // ::ospray

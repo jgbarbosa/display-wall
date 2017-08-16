@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (c) 2016 Ingo Wald
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,10 +30,10 @@ SOFTWARE.
 namespace ospray {
   namespace dw {
 
-    using std::cout; 
+    using std::cout;
     using std::endl;
     using std::flush;
-    
+
     void usage(const std::string &err)
     {
       if (!err.empty()) {
@@ -49,8 +49,8 @@ namespace ospray {
     }
 
     /*! the display callback */
-    void displayNewFrame(const uint32_t *left, 
-                         const uint32_t *right, 
+    void displayNewFrame(const uint32_t *left,
+                         const uint32_t *right,
                          void *object)
     {
       GLFWindow *window = (GLFWindow*)object;
@@ -80,6 +80,7 @@ namespace ospray {
 
       // default settings
       bool hasHeadNode  = false;
+      bool tcpBridge     = false;
       bool doStereo     = false;
       bool doFullScreen = false;
       WallConfig::DisplayArrangement arrangement = WallConfig::Arrangement_xy;
@@ -93,6 +94,8 @@ namespace ospray {
         const std::string arg = av[i];
         if (arg == "--head-node" || arg == "-hn") {
           hasHeadNode = true;
+      } else if (arg == "--tcp-bridge" || arg == "-tcp") {
+          tcpBridge = true;
         } else if (arg == "--stereo" || arg == "-s") {
           doStereo = true;
         } else if (arg == "--no-head-node" || arg == "-nhn") {
@@ -111,7 +114,7 @@ namespace ospray {
           else if (arrangementName == "Yx")
             /* y minor, y is inverted */
             arrangement = WallConfig::Arrangement_Yx;
-          else 
+          else
             throw std::runtime_error("arrangement type not implemented");
         } else if (arg == "--height" || arg == "-h") {
           assert(i+1<ac);
@@ -137,13 +140,13 @@ namespace ospray {
           desiredInfoPortNum = atoi(av[++i]);
         } else {
           usage("unkonwn arg "+arg);
-        } 
+        }
 
       }
 
-      if (numDisplays.x < 1) 
+      if (numDisplays.x < 1)
         usage("no display wall width specified (--width <w>)");
-      if (numDisplays.y < 1) 
+      if (numDisplays.y < 1)
         usage("no display wall height specified (--heigh <h>)");
       if (world.size != numDisplays.x*numDisplays.y+hasHeadNode)
         throw std::runtime_error("invalid number of ranks for given display/head node config");
@@ -153,7 +156,7 @@ namespace ospray {
 
       char title[1000];
       sprintf(title,"rank %i/%i, display (%i,%i)",world.rank,world.size,displayID.x,displayID.y);
-      
+
 
       if (doFullScreen)
         windowSize = GLFWindow::getScreenSize();
@@ -163,7 +166,7 @@ namespace ospray {
                             arrangement,doStereo);
 
       std::string configFileName = "configuration.xml";
-      
+
       if (world.rank == 0) {
         cout << "#osp:dw: display wall config is" << endl;
         wallConfig.print();
@@ -194,8 +197,8 @@ namespace ospray {
       }
 
       startDisplayWallService(world.comm,wallConfig,hasHeadNode,
-                              displayNewFrame,glfWindow,desiredInfoPortNum);
-      
+                              displayNewFrame,glfWindow,desiredInfoPortNum,tcpBridge);
+
       if (hasHeadNode && world.rank == 0) {
         /* no window on head node - should never have returend from setupComms*/
         assert(false);
@@ -205,6 +208,6 @@ namespace ospray {
       }
       return 0;
     }
-    
+
   } // ::ospray::dw
 } // ::ospray

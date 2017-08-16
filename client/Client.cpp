@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (c) 2016-17 Ingo Wald
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,8 +27,8 @@ namespace ospray {
   namespace dw {
 
     using namespace ospcommon;
-        
-    using std::cout; 
+
+    using std::cout;
     using std::endl;
     using std::flush;
 
@@ -45,13 +45,14 @@ namespace ospray {
       totalPixelsInWall.x = read_int(sock);
       totalPixelsInWall.y = read_int(sock);
       stereo = read_int(sock);
+      tcpbridge = read_int(sock);
       close(sock);
     }
 
-    
+
     Client::Client(const MPI::Group &me,
-                   const std::string &portName)
-      : me(me), wallConfig(NULL)
+                   const std::string &portName, const bool tcpbridge)
+      : me(me), wallConfig(NULL), tcpbridge(tcpbridge)
     {
       establishConnection(portName);
       receiveDisplayConfig();
@@ -60,25 +61,27 @@ namespace ospray {
       if (me.rank == 0)
         wallConfig->print();
     }
-    
-    void Client::receiveDisplayConfig() 
+
+    void Client::receiveDisplayConfig()
     {
       vec2i numDisplays;
       vec2i pixelsPerDisplay;
       int arrangement;
       int stereo;
+      int tcpbridge;
       vec2f relativeBezelWidth;
-      if (me.rank == 0) 
+      if (me.rank == 0)
         cout << "waiting for service to tell us the display wall config..." << endl;
       MPI_CALL(Bcast(&numDisplays,2,MPI_INT,0,displayGroup.comm));
       MPI_CALL(Bcast(&pixelsPerDisplay,2,MPI_INT,0,displayGroup.comm));
       MPI_CALL(Bcast(&relativeBezelWidth,2,MPI_FLOAT,0,displayGroup.comm));
       MPI_CALL(Bcast(&arrangement,1,MPI_INT,0,displayGroup.comm));
       MPI_CALL(Bcast(&stereo,1,MPI_INT,0,displayGroup.comm));
+      MPI_CALL(Bcast(&tcpbridge,1,MPI_INT,0,displayGroup.comm));
       wallConfig = new WallConfig(numDisplays,pixelsPerDisplay,
                                   relativeBezelWidth,
                                   (WallConfig::DisplayArrangement)arrangement,
-                                  stereo);
+                                  stereo,tcpbridge);
     }
 
     /*! establish connection between 'me' and the remote service */
@@ -98,7 +101,7 @@ namespace ospray {
       me.barrier();
     }
 
-    vec2i Client::totalPixelsInWall() const 
+    vec2i Client::totalPixelsInWall() const
     {
       assert(wallConfig);
       return wallConfig->totalPixels();
@@ -152,7 +155,7 @@ namespace ospray {
              usleep(1000));
 
       for (int dy=affectedDisplays.lower.y;dy<affectedDisplays.upper.y;dy++)
-        for (int dx=affectedDisplays.lower.x;dx<affectedDisplays.upper.x;dx++) 
+        for (int dx=affectedDisplays.lower.x;dx<affectedDisplays.upper.x;dx++)
           encoded.sendTo(displayGroup,wallConfig->rankOfDisplay(vec2i(dx,dy)));
     }
 

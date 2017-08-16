@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (c) 2016-17 Ingo Wald
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -49,16 +49,19 @@ namespace ospray {
       /*! the MPI port name that the service is listening on client
           connections for (ie, the one to use with
           client::establishConnection) */
-      std::string mpiPortName; 
+      std::string mpiPortName;
 
       /*! whether this runs in stereo mode */
       int stereo;
 
+      /*! whether communicates by tcpbridge */
+      bool tcpbridge;
+
       /*! read a service info from a given hostName:port. The service
-        has to already be running on that port 
+        has to already be running on that port
 
         Note this may throw a std::runtime_error if the connection
-        cannot be established 
+        cannot be established
       */
       void getFrom(const std::string &hostName,
                    const int portNo);
@@ -67,7 +70,7 @@ namespace ospray {
     /*! complete state of a given client rank */
     struct Client {
       Client(const MPI::Group &me,
-             const std::string &portName);
+             const std::string &portName, const bool tcpbridge = false);
       /*! return total pixels in display wall, so renderer/app can
           know how large a frame buffer to use ... */
       vec2i totalPixelsInWall() const;
@@ -83,6 +86,7 @@ namespace ospray {
       WallConfig *wallConfig;
       MPI::Group displayGroup;
       MPI::Group me;
+      bool tcpbridge;
     };
 
   } // ::ospray::dw

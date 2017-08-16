@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (c) 2016 Ingo Wald
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,7 +27,7 @@ SOFTWARE.
 namespace ospray {
   namespace dw {
 
-    using std::cout; 
+    using std::cout;
     using std::endl;
     using std::flush;
 
@@ -55,14 +55,14 @@ namespace ospray {
           break;
         nextPortToTry++;
       }
-      
+
       char hostName[1000];
       gethostname(hostName,1000);
       printf("=======================================================\n");
       printf("#osp:dw: opened display wall info port on %s:%i\n",
              hostName,nextPortToTry);
       printf("=======================================================\n");
-      
+
       static std::thread portListenerThread([=](){
           while (1) {
             socket_t client = listen(listener);
@@ -71,6 +71,7 @@ namespace ospray {
             write(client,wallConfig.totalPixels().x);
             write(client,wallConfig.totalPixels().y);
             write(client,(int)wallConfig.stereo);
+            write(client,(int)wallConfig.tcpbridge);
             flush(client);
             close(client);
           }
@@ -80,7 +81,7 @@ namespace ospray {
     /*! send the display wall config to the client, so the client will
         known both display arrayngement and total frame buffer
         config */
-    void sendConfigToClient(const MPI::Group &outside, 
+    void sendConfigToClient(const MPI::Group &outside,
                             const MPI::Group &me,
                             const WallConfig &wallConfig)
     {
@@ -89,6 +90,7 @@ namespace ospray {
       vec2f relativeBezelWidth = wallConfig.relativeBezelWidth;
       int arrangement = wallConfig.displayArrangement;
       int stereo      = wallConfig.stereo;
+      int tcpbridge      = wallConfig.tcpbridge;
       /*! if we're the head node, let's 'fake' a single display to the client */
       if (me.size == 1) {
         pixelsPerDisplay = wallConfig.totalPixels();
@@ -104,6 +106,8 @@ namespace ospray {
       MPI_CALL(Bcast(&arrangement,1,MPI_INT,
                      me.rank==0?MPI_ROOT:MPI_PROC_NULL,outside.comm));
       MPI_CALL(Bcast(&stereo,1,MPI_INT,
+                     me.rank==0?MPI_ROOT:MPI_PROC_NULL,outside.comm));
+      MPI_CALL(Bcast(&tcpbridge,1,MPI_INT,
                      me.rank==0?MPI_ROOT:MPI_PROC_NULL,outside.comm));
     }
 
@@ -129,12 +133,12 @@ namespace ospray {
                portName);
       }
 
-      if (outwardFacingGroup.rank == 0) 
+      if (outwardFacingGroup.rank == 0)
         /* open the port that we give display wall info on
            (capabilities and MPI port tname of the service); do that
            only on rank 0 (or head node, if used) */
         openInfoPort(portName,wallConfig,desiredInfoPortNum);
-        
+
 
       /* accept / wait for outside connection on this port */
       MPI_CALL(Comm_accept(portName,MPI_INFO_NULL,0,outwardFacingGroup.comm,&outside));
@@ -148,7 +152,7 @@ namespace ospray {
       /* and return the inter-communicator to the outside */
       return MPI::Group(outside);
     };
-    
+
     /*! allocate the frame buffers for left/right eye and recv/display, respectively */
     void Server::allocateFrameBuffers()
     {
@@ -209,14 +213,14 @@ namespace ospray {
       if (hasHeadNode) {
         MPI_Comm intraComm, interComm;
         MPI_CALL(Comm_split(world.comm,1+(world.rank>0),world.rank,&intraComm));
-        
+
         if (world.rank == 0) {
           dispatchGroup = MPI::Group(intraComm);
-          MPI_Intercomm_create(intraComm,0,world.comm, 1, 1, &interComm); 
+          MPI_Intercomm_create(intraComm,0,world.comm, 1, 1, &interComm);
           displayGroup = MPI::Group(interComm);
         } else {
           displayGroup = MPI::Group(intraComm);
-          MPI_Intercomm_create(intraComm,0,world.comm, 0, 1, &interComm); 
+          MPI_Intercomm_create(intraComm,0,world.comm, 0, 1, &interComm);
           dispatchGroup = MPI::Group(interComm);
         }
       } else {
@@ -255,18 +259,18 @@ namespace ospray {
         processIncomingTiles(incomingTiles);
       }
     }
-    
+
     void startDisplayWallService(const MPI_Comm comm,
                                  const WallConfig &wallConfig,
                                  bool hasHeadNode,
                                  DisplayCallback displayCallback,
                                  void *objectForCallback,
-                                 int desiredInfoPortNum)
+                                 int desiredInfoPortNum, bool tcpBridge)
     {
       assert(Server::singleton == NULL);
       Server::singleton = new Server(MPI::Group(comm),wallConfig,hasHeadNode,
                                      displayCallback,objectForCallback,
-                                     desiredInfoPortNum);
+                                     desiredInfoPortNum,tcpBridge);
     }
 
     Server::Server(const MPI::Group &world,
@@ -274,7 +278,7 @@ namespace ospray {
                    const bool hasHeadNode,
                    DisplayCallback displayCallback,
                    void *objectForCallback,
-                   int desiredInfoPortNum)
+                   int desiredInfoPortNum, bool tcpbridge)
       : me(world.dup()),
         wallConfig(wallConfig),
         hasHeadNode(hasHeadNode),
@@ -287,7 +291,8 @@ namespace ospray {
         recv_r(NULL),
         disp_l(NULL),
         disp_r(NULL),
-        desiredInfoPortNum(desiredInfoPortNum)
+        desiredInfoPortNum(desiredInfoPortNum),
+        tcpbridge(tcpbridge)
     {
       commThreadIsReady.lock();
       canStartProcessing.lock();
@@ -297,7 +302,7 @@ namespace ospray {
         });
       commThreadIsReady.lock();
 #endif
- 
+
       if (hasHeadNode && me.rank == 0) {
         /* if this is the head node we wait here until everything is
            done; this prevents the comm thread from dying when we
@@ -313,6 +318,6 @@ namespace ospray {
       /* need to add some shutdown code that re-joins that thread when
          all is done */
     }
-    
+
   } // ::ospray::dw
 } // ::ospray

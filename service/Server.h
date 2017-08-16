@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (c) 2016 Ingo Wald
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -31,8 +31,8 @@ namespace ospray {
 
     #define DW_STEREO 1
     #define DW_HAVE_HEAD_NODE 2
-    
-    typedef void (*DisplayCallback)(const uint32_t *leftEye, 
+
+    typedef void (*DisplayCallback)(const uint32_t *leftEye,
                                     const uint32_t *rightEye,
                                     void *objects);
 
@@ -46,7 +46,7 @@ namespace ospray {
              const bool hasHeadNode,
              DisplayCallback displayCallback,
              void *objectForCallback,
-             int desiredInfoPortNum);
+             int desiredInfoPortNum, bool tcpbridge=false);
 
       /*! the code that actually receives the tiles, decompresses
           them, and writes them into the current (write-)frame buffer */
@@ -82,7 +82,7 @@ namespace ospray {
 
       const WallConfig wallConfig;
       const bool hasHeadNode;
-      
+
       const DisplayCallback displayCallback;
       void *const objectForCallback;
 
@@ -98,6 +98,8 @@ namespace ospray {
       /*! @} */
 
       int desiredInfoPortNum;
+
+      bool tcpbridge;
     };
 
     void startDisplayWallService(const MPI_Comm comm,
@@ -105,7 +107,7 @@ namespace ospray {
                                  bool hasHeadNode,
                                  DisplayCallback displayCallback,
                                  void *objectForCallback,
-                                 int desiredInfoPortNum);
+                                 int desiredInfoPortNum, bool tcpBridge = false);
 
   } // ::ospray::dw
 } // ::ospray

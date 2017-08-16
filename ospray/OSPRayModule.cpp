@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (c) 2016 Ingo Wald
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,7 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-// ospray pixel 
+// ospray pixel
 #include "ospray/fb/PixelOp.h"
 #include "ospray/fb/FrameBuffer.h"
 #include "mpiCommon/MPICommon.h"
@@ -30,11 +30,11 @@ SOFTWARE.
 namespace ospray {
   namespace dw {
 
-    struct DisplayWaldPixelOp : public ospray::PixelOp 
+    struct DisplayWaldPixelOp : public ospray::PixelOp
     {
-      struct Instance : public ospray::PixelOp::Instance 
+      struct Instance : public ospray::PixelOp::Instance
       {
-        Instance(FrameBuffer *fb, 
+        Instance(FrameBuffer *fb,
                  PixelOp::Instance *prev,
                  dw::Client *client)
           : client(client)
@@ -45,9 +45,9 @@ namespace ospray {
         // /*! gets called every time the frame buffer got 'commit'ted */
         // virtual void  commitNotify() {}
         // /*! gets called once at the end of the frame */
-        virtual void endFrame() 
+        virtual void endFrame()
         { client->endFrame(); }
-        
+
         unsigned int clampColorComponent(float c)
         {
           if (c<0.0f)
@@ -56,24 +56,24 @@ namespace ospray {
             c = 1.0f;
           return (unsigned int)(255.0f*c);
         }
-        
+
         float simpleGammaCorrection(float c, float gamma)
         {
           float r = powf(c, 1.0f/gamma);
           return r;
         }
-        
+
         unsigned int packColor(unsigned int r, unsigned int g, unsigned int b, unsigned int a=255)
         {
             return (r<<0) | (g<<8) | (b<<16) | (a<<24);
         }
-      
+
         /*! called right after the tile got accumulated; i.e., the
           tile's RGBA values already contain the accu-buffer blended
           values (assuming an accubuffer exists), and this function
           defines how these pixels are being processed before written
           into the color buffer */
-        virtual void postAccum(Tile &tile) 
+        virtual void postAccum(Tile &tile)
         {
           PlainTile plainTile(vec2i(TILE_SIZE));
           plainTile.pitch = TILE_SIZE;
@@ -81,7 +81,7 @@ namespace ospray {
             //int r = std::min(255,int(255.f*tile.r[i]));
             //int g = std::min(255,int(255.f*tile.g[i]));
             //int b = std::min(255,int(255.f*tile.b[i]));
-            
+
             float gamma = 2.2;
             unsigned int r = clampColorComponent(simpleGammaCorrection(tile.r[i], gamma));
             unsigned int g = clampColorComponent(simpleGammaCorrection(tile.g[i], gamma));
@@ -128,47 +128,48 @@ namespace ospray {
                 plainTile.pixel[i] = plainTile.pixel[i+shift];
               client->writeTile(plainTile);
             }
-              
+
           }
         }
- 
-        //! \brief common function to help printf-debugging 
+
+        //! \brief common function to help printf-debugging
         /*! Every derived class should overrride this! */
         virtual std::string toString() const;
 
         dw::Client *client;
       };
-      
-      //! \brief common function to help printf-debugging 
+
+      //! \brief common function to help printf-debugging
       /*! Every derived class should overrride this! */
       virtual std::string toString() const;
-      
+
       /*! \brief commit the object's outstanding changes (such as changed
        *         parameters etc) */
       virtual void commit()
       {
         std::string streamName = getParamString("streamName","");
+        bool tcpbridge = getParam1i("tcpbridge",false);
         std::cout << "#osp:dw: trying to establish connection to display wall service at MPI port " << streamName << std::endl;
 
-        client = new dw::Client(mpicommon::worker.comm,streamName);
+        client = new dw::Client(mpicommon::worker.comm,streamName,tcpbridge);
       }
 
       //! \brief create an instance of this pixel op
-      virtual ospray::PixelOp::Instance *createInstance(FrameBuffer *fb, 
+      virtual ospray::PixelOp::Instance *createInstance(FrameBuffer *fb,
                                                         PixelOp::Instance *prev) override
       {
         return new Instance(fb,prev,client);
       }
-      
+
       dw::Client *client;
     };
-    
-    //! \brief common function to help printf-debugging 
-    std::string DisplayWaldPixelOp::toString() const 
+
+    //! \brief common function to help printf-debugging
+    std::string DisplayWaldPixelOp::toString() const
     { return "ospray::dw::DisplayWaldPixelOp (displayWald module)"; }
 
-    //! \brief common function to help printf-debugging 
-    std::string DisplayWaldPixelOp::Instance::toString() const 
+    //! \brief common function to help printf-debugging
+    std::string DisplayWaldPixelOp::Instance::toString() const
     { return "ospray::dw::DisplayWaldPixelOp::Instance (displayWald module)"; }
 
     extern "C" void ospray_init_module_displayWald()

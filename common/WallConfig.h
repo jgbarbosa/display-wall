@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (c) 2016 Ingo Wald
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -41,15 +41,15 @@ namespace ospray {
           a 5x3 walld means rank 0 (ie, display (0,0)) is in the lower
           left, rank 1 (ie, (1,0)) to the right of it, rank 5 (display
           (0,1)) to the top of 0, etc.  */
-      typedef enum { Arrangement_xy, Arrangement_xY, Arrangement_Xy, Arrangement_XY, 
-                     Arrangement_yx, Arrangement_yX, Arrangement_Yx, Arrangement_YX } 
+      typedef enum { Arrangement_xy, Arrangement_xY, Arrangement_Xy, Arrangement_XY,
+                     Arrangement_yx, Arrangement_yX, Arrangement_Yx, Arrangement_YX }
         DisplayArrangement;
 
-      WallConfig(const vec2i &numDisplays, 
+      WallConfig(const vec2i &numDisplays,
                  const vec2i &pixelsPerDisplay,
                  const vec2f &relativeBezelWidth=vec2f(0.f),
                  const DisplayArrangement displayArrangement=Arrangement_xy,
-                 const bool stereo=0);
+                 const bool stereo=0, const bool tcpbridge=0);
 
       /*! returns the number of pixels (in x and y, respectively) that
           the bezel will cover. Note we do not care whether bezels are
@@ -79,7 +79,7 @@ namespace ospray {
         that display at given coordinates is covering */
       box2i  regionOfDisplay(const vec2i &displayID) const;
       box2i  regionOfRank(int rank) const;
-      
+
       /*! returns range of displays that are affected by the given
           region of pixels (ie, that together are guaranteed to cover
           that pixel region */
@@ -92,6 +92,7 @@ namespace ospray {
       vec2i pixelsPerDisplay;
       DisplayArrangement displayArrangement;
       bool stereo;
+      bool tcpbridge;
       vec2f relativeBezelWidth;
     };
 
